@@ -296,6 +296,26 @@
         <span>Invert brightness</span>
       </div>
     </div>
+
+    <div class="control-group">
+      <label>Brightness</label>
+      <div class="row">
+        <input type="range" id="brightness" min="-128" max="128" value="0" step="1">
+        <span class="val" id="brightness-val">0</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Contrast</label>
+      <div class="row">
+        <input type="range" id="contrast" min="0.2" max="3" value="1" step="0.05">
+        <span class="val" id="contrast-val">1.0</span>
+      </div>
+    </div>
+
+    <div class="control-group" style="display:flex;align-items:flex-end;">
+      <button id="btn-reset-adj" style="padding:0.4rem 0.9rem;font-size:0.8rem;background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:6px;cursor:pointer;">Reset adjustments</button>
+    </div>
   </div>
 
   <div class="actions">
@@ -327,29 +347,50 @@ const CHARSETS = {
 
 // ─── DOM refs ──────────────────────────────────────────────────────────────
 
-const dropZone    = document.getElementById('drop-zone');
-const fileInput   = document.getElementById('file-input');
-const charSlider  = document.getElementById('char-size');
-const charVal     = document.getElementById('char-size-val');
-const charsetSel  = document.getElementById('charset');
-const colorCheck  = document.getElementById('color-mode');
-const invertCheck = document.getElementById('invert-mode');
-const btnConvert  = document.getElementById('btn-convert');
-const btnDownload = document.getElementById('btn-download');
-const btnCopy     = document.getElementById('btn-copy');
-const btnReset    = document.getElementById('btn-reset');
-const statusEl    = document.getElementById('status');
-const outputWrap  = document.getElementById('output-wrap');
-const canvas      = document.getElementById('canvas-output');
-const ctx         = canvas.getContext('2d');
+const dropZone      = document.getElementById('drop-zone');
+const fileInput     = document.getElementById('file-input');
+const charSlider    = document.getElementById('char-size');
+const charVal       = document.getElementById('char-size-val');
+const charsetSel    = document.getElementById('charset');
+const colorCheck    = document.getElementById('color-mode');
+const invertCheck   = document.getElementById('invert-mode');
+const brightnessEl  = document.getElementById('brightness');
+const brightnessVal = document.getElementById('brightness-val');
+const contrastEl    = document.getElementById('contrast');
+const contrastVal   = document.getElementById('contrast-val');
+const btnConvert    = document.getElementById('btn-convert');
+const btnDownload   = document.getElementById('btn-download');
+const btnCopy       = document.getElementById('btn-copy');
+const btnReset      = document.getElementById('btn-reset');
+const btnResetAdj   = document.getElementById('btn-reset-adj');
+const statusEl      = document.getElementById('status');
+const outputWrap    = document.getElementById('output-wrap');
+const canvas        = document.getElementById('canvas-output');
+const ctx           = canvas.getContext('2d');
 
 let loadedImage = null;
 let lastTextLines = [];
 
-// ─── Slider label ──────────────────────────────────────────────────────────
+// ─── Slider labels ─────────────────────────────────────────────────────────
 
 charSlider.addEventListener('input', () => {
   charVal.textContent = charSlider.value + 'px';
+});
+
+brightnessEl.addEventListener('input', () => {
+  const v = parseInt(brightnessEl.value, 10);
+  brightnessVal.textContent = (v > 0 ? '+' : '') + v;
+});
+
+contrastEl.addEventListener('input', () => {
+  contrastVal.textContent = parseFloat(contrastEl.value).toFixed(1);
+});
+
+btnResetAdj.addEventListener('click', () => {
+  brightnessEl.value = 0;
+  brightnessVal.textContent = '0';
+  contrastEl.value = 1;
+  contrastVal.textContent = '1.0';
 });
 
 // ─── Drag & drop ──────────────────────────────────────────────────────────
@@ -395,10 +436,12 @@ btnConvert.addEventListener('click', convert);
 function convert() {
   if (!loadedImage) return;
 
-  const charSize  = parseInt(charSlider.value, 10);
-  const charset   = CHARSETS[charsetSel.value];
-  const colorize  = colorCheck.checked;
-  const invert    = invertCheck.checked;
+  const charSize   = parseInt(charSlider.value, 10);
+  const charset    = CHARSETS[charsetSel.value];
+  const colorize   = colorCheck.checked;
+  const invert     = invertCheck.checked;
+  const brightness = parseInt(brightnessEl.value, 10);
+  const contrast   = parseFloat(contrastEl.value);
 
   // Sample the image at charSize intervals
   const sampleW = Math.floor(loadedImage.width  / charSize);
@@ -426,8 +469,10 @@ function convert() {
     for (let col = 0; col < sampleW; col++) {
       const i = (row * sampleW + col) * 4;
       const r = px[i], g = px[i+1], b = px[i+2];
-      // Perceived luminance
+      // Perceived luminance with brightness/contrast
       let lum = 0.299*r + 0.587*g + 0.114*b;
+      lum = (lum - 128) * contrast + 128 + brightness;
+      lum = Math.min(255, Math.max(0, lum));
       if (invert) lum = 255 - lum;
       const t = lum / 255;
       const charIdx = Math.floor(t * (charset.length - 1));
