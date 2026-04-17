@@ -346,6 +346,14 @@
       </div>
     </div>
 
+    <div class="control-group">
+      <label>Line Spacing</label>
+      <div class="row">
+        <input type="range" id="line-spacing" min="1" max="2.5" value="2" step="0.1">
+        <span class="val" id="line-spacing-val">2.0×</span>
+      </div>
+    </div>
+
     <div class="control-group" style="display:flex;align-items:flex-end;">
       <button id="btn-reset-adj" style="padding:0.4rem 0.9rem;font-size:0.8rem;background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:6px;cursor:pointer;">Reset adjustments</button>
     </div>
@@ -389,8 +397,10 @@ const colorCheck    = document.getElementById('color-mode');
 const invertCheck   = document.getElementById('invert-mode');
 const brightnessEl  = document.getElementById('brightness');
 const brightnessVal = document.getElementById('brightness-val');
-const contrastEl    = document.getElementById('contrast');
-const contrastVal   = document.getElementById('contrast-val');
+const contrastEl      = document.getElementById('contrast');
+const contrastVal     = document.getElementById('contrast-val');
+const lineSpacingEl   = document.getElementById('line-spacing');
+const lineSpacingVal  = document.getElementById('line-spacing-val');
 const btnConvert    = document.getElementById('btn-convert');
 const btnDownload   = document.getElementById('btn-download');
 const btnCopy       = document.getElementById('btn-copy');
@@ -431,11 +441,17 @@ contrastEl.addEventListener('input', () => {
   contrastVal.textContent = parseFloat(contrastEl.value).toFixed(1);
 });
 
+lineSpacingEl.addEventListener('input', () => {
+  lineSpacingVal.textContent = parseFloat(lineSpacingEl.value).toFixed(1) + '×';
+});
+
 btnResetAdj.addEventListener('click', () => {
   brightnessEl.value = 0;
   brightnessVal.textContent = '0';
   contrastEl.value = 1;
   contrastVal.textContent = '1.0';
+  lineSpacingEl.value = 2;
+  lineSpacingVal.textContent = '2.0×';
 });
 
 // ─── Drag & drop ──────────────────────────────────────────────────────────
@@ -481,16 +497,17 @@ btnConvert.addEventListener('click', convert);
 function convert() {
   if (!loadedImage) return;
 
-  const charSize   = parseInt(charSlider.value, 10);
-  const charset    = CHARSETS[charsetSel.value];
-  const colorize   = colorCheck.checked;
-  const invert     = invertCheck.checked;
-  const brightness = parseInt(brightnessEl.value, 10);
-  const contrast   = parseFloat(contrastEl.value);
+  const charSize    = parseInt(charSlider.value, 10);
+  const charset     = CHARSETS[charsetSel.value];
+  const colorize    = colorCheck.checked;
+  const invert      = invertCheck.checked;
+  const brightness  = parseInt(brightnessEl.value, 10);
+  const contrast    = parseFloat(contrastEl.value);
+  const lineSpacing = parseFloat(lineSpacingEl.value);
 
   // Sample the image at charSize intervals
   const sampleW = Math.floor(loadedImage.width  / charSize);
-  const sampleH = Math.floor(loadedImage.height / (charSize * 2)); // chars are ~2x taller than wide
+  const sampleH = Math.floor(loadedImage.height / (charSize * lineSpacing));
 
   if (sampleW < 1 || sampleH < 1) { setStatus('Image too small for that character size.'); return; }
 
@@ -533,7 +550,7 @@ function convert() {
   // Render to canvas
   const fontSize = charSize;
   const fontFace = "'Courier New', monospace";
-  const lineH    = charSize * 2;
+  const lineH    = Math.round(charSize * lineSpacing);
   const colW     = charSize;
 
   canvas.width  = sampleW * colW;
