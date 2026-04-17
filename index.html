@@ -150,6 +150,31 @@
 
     select:focus { outline: 1px solid var(--accent); }
 
+    /* Background toggle */
+    .bg-toggle {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .bg-btn {
+      flex: 1;
+      padding: 0.4rem 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .bg-btn.active {
+      border-color: var(--accent-hi);
+      color: var(--accent-hi);
+      background: rgba(109,196,95,0.08);
+    }
+
     /* Toggle row */
     .toggle-row {
       display: flex;
@@ -286,6 +311,14 @@
     </div>
 
     <div class="control-group">
+      <label>Background</label>
+      <div class="bg-toggle">
+        <button class="bg-btn active" id="bg-black" data-bg="black">Black</button>
+        <button class="bg-btn" id="bg-white" data-bg="white">White</button>
+      </div>
+    </div>
+
+    <div class="control-group">
       <label>Options</label>
       <div class="toggle-row">
         <input type="checkbox" id="color-mode" checked>
@@ -367,6 +400,18 @@ const statusEl      = document.getElementById('status');
 const outputWrap    = document.getElementById('output-wrap');
 const canvas        = document.getElementById('canvas-output');
 const ctx           = canvas.getContext('2d');
+
+// ─── Background toggle ─────────────────────────────────────────────────────
+
+let bgColor = 'black';
+
+document.querySelectorAll('.bg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    bgColor = btn.dataset.bg;
+  });
+});
 
 let loadedImage = null;
 let lastTextLines = [];
@@ -473,7 +518,9 @@ function convert() {
       let lum = 0.299*r + 0.587*g + 0.114*b;
       lum = (lum - 128) * contrast + 128 + brightness;
       lum = Math.min(255, Math.max(0, lum));
-      if (invert) lum = 255 - lum;
+      // On white bg, flip mapping: dark pixels → dense chars, light → space
+      const effectiveInvert = invert !== (bgColor === 'white');
+      if (effectiveInvert) lum = 255 - lum;
       const t = lum / 255;
       const charIdx = Math.floor(t * (charset.length - 1));
       const ch = charset[charIdx];
@@ -492,18 +539,21 @@ function convert() {
   canvas.width  = sampleW * colW;
   canvas.height = sampleH * lineH;
 
-  ctx.fillStyle = '#000';
+  const isWhite = bgColor === 'white';
+  ctx.fillStyle = isWhite ? '#fff' : '#000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.font = `${fontSize}px ${fontFace}`;
   ctx.textBaseline = 'top';
+
+  const monoColor = isWhite ? '#222' : '#6dc45f';
 
   let idx = 0;
   for (let row = 0; row < sampleH; row++) {
     for (let col = 0; col < sampleW; col++) {
       const { ch, r, g, b } = cells[idx++];
       if (ch === ' ') continue;
-      ctx.fillStyle = colorize ? `rgb(${r},${g},${b})` : '#6dc45f';
+      ctx.fillStyle = colorize ? `rgb(${r},${g},${b})` : monoColor;
       ctx.fillText(ch, col * colW, row * lineH);
     }
   }
